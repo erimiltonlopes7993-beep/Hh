@@ -7,7 +7,7 @@ local VirtualUser = game:GetService("VirtualUser")
 local TeleportService = game:GetService("TeleportService")
 local HttpService = game:GetService("HttpService")
 local TweenService = game:GetService("TweenService")
-local workspace = workspace
+local workspace = game.Workspace
 
 local fileName = "Phantom_" .. tostring(Player.UserId) .. ".json"
 local savedSettings = {}
@@ -46,8 +46,10 @@ local function setOptionState(name, value)
     saveSettings()
 end
 
+-- ============ INTERFACE PRINCIPAL ============
+
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "PhantomHub_V1"
+ScreenGui.Name = "PhantomHub_V2"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = PlayerGui
 
@@ -86,8 +88,8 @@ BtnLabel.Parent = InnerBtn
 BtnLabel.ZIndex = 1002
 
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 550, 0, 480)
-MainFrame.Position = UDim2.new(0.5, -275, 0.5, -240)
+MainFrame.Size = UDim2.new(0, 550, 0, 500)
+MainFrame.Position = UDim2.new(0.5, -275, 0.5, -250)
 MainFrame.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
 MainFrame.Visible = false
 MainFrame.Parent = ScreenGui
@@ -167,12 +169,16 @@ local MainContent = Instance.new("ScrollingFrame")
 MainContent.Size = UDim2.new(1, -145, 1, -55)
 MainContent.Position = UDim2.new(0, 145, 0, 50)
 MainContent.BackgroundTransparency = 1
-MainContent.ScrollBarThickness = 3
+MainContent.ScrollBarThickness = 6
 MainContent.CanvasSize = UDim2.new(0, 0, 0, 0)
 MainContent.Parent = InnerFrame
 MainContent.ZIndex = 999
 
-local options = {Main = {}, ["Buy ALL"] = {}, Farm = {}, Config = {}, Credits = {}}
+local UIListLayout = Instance.new("UIListLayout")
+UIListLayout.Padding = UDim.new(0, 12)
+UIListLayout.Parent = MainContent
+
+local options = {Main = {}, Buy = {}, Farm = {}, Config = {}, Credits = {}}
 local activeTab = "Main"
 local expandedOptions = {}
 local allSubFrames = {}
@@ -206,17 +212,8 @@ local TabFarm = createTabBtn("Farm", 2)
 local TabConfig = createTabBtn("Config", 3)
 local TabCredits = createTabBtn("Credits", 4)
 
-local function repositionElements(tab)
-    local yPos = 0
-    for _, elem in ipairs(options[tab]) do
-        if elem.Visible then
-            elem.Position = UDim2.new(0, 0, 0, yPos)
-            yPos = yPos + elem.Size.Y.Offset + 10
-        end
-    end
-    
-    MainContent.CanvasSize = UDim2.new(0, 0, 0, math.max(yPos + 50, 350))
-    MainContent.CanvasPosition = Vector2.new(0, 0)
+local function updateCanvasSize()
+    MainContent.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y + 20)
 end
 
 local function createDebounce(key, duration)
@@ -227,12 +224,12 @@ local function createDebounce(key, duration)
     return true
 end
 
-local function createOption(name, startActive, tab, callback)
+local function createOption(name, startActive, tab, callback, isSimpleButton)
     createOptionState(name, startActive)
     local currentActive = optionStates[name]
 
     local Container = Instance.new("Frame")
-    Container.Size = UDim2.new(0.95, 0, 0, 50)
+    Container.Size = UDim2.new(1, -20, 0, 50)
     Container.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
     Container.Visible = (tab == activeTab)
     Container.Parent = MainContent
@@ -275,6 +272,8 @@ local function createOption(name, startActive, tab, callback)
     Circle.ZIndex = 999
     Instance.new("UICorner", Circle).CornerRadius = UDim.new(1, 0)
 
+    local SubFrame = nil
+
     local function toggleSwitch()
         if createDebounce(name, 0.05) then
             optionStates[name] = not optionStates[name]
@@ -288,7 +287,12 @@ local function createOption(name, startActive, tab, callback)
                 task.spawn(function() callback(optionStates[name]) end)
             end
 
-            repositionElements(activeTab)
+            if SubFrame then
+                SubFrame.Visible = false
+                expandedOptions[name] = false
+            end
+
+            updateCanvasSize()
         end
     end
 
@@ -307,7 +311,7 @@ local function createOption(name, startActive, tab, callback)
     end
 
     table.insert(options[tab], Container)
-    repositionElements(tab)
+    updateCanvasSize()
     return function() return optionStates[name] end, Container, SwitchBG
 end
 
@@ -319,7 +323,7 @@ local function createSlider(name, min, max, default, tab, callback)
     local currentVal = optionStates[name]
 
     local Container = Instance.new("Frame")
-    Container.Size = UDim2.new(0.95, 0, 0, 60)
+    Container.Size = UDim2.new(1, -20, 0, 70)
     Container.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
     Container.Visible = (tab == activeTab)
     Container.Parent = MainContent
@@ -333,7 +337,7 @@ local function createSlider(name, min, max, default, tab, callback)
 
     local Label = Instance.new("TextLabel")
     Label.Size = UDim2.new(0.9, 0, 0.4, 0)
-    Label.Position = UDim2.new(0.05, 0, 0, 5)
+    Label.Position = UDim2.new(0.05, 0, 0, 8)
     Label.Text = name .. ": " .. tostring(currentVal)
     Label.TextColor3 = Color3.fromRGB(255, 255, 255)
     Label.BackgroundTransparency = 1
@@ -345,7 +349,7 @@ local function createSlider(name, min, max, default, tab, callback)
 
     local SliderBG = Instance.new("TextButton")
     SliderBG.Size = UDim2.new(0.9, 0, 0, 6)
-    SliderBG.Position = UDim2.new(0.05, 0, 0.5, 0)
+    SliderBG.Position = UDim2.new(0.05, 0, 0.55, 0)
     SliderBG.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
     SliderBG.Text = ""
     SliderBG.Parent = Container
@@ -409,12 +413,12 @@ local function createSlider(name, min, max, default, tab, callback)
     end)
 
     table.insert(options[tab], Container)
-    repositionElements(tab)
+    updateCanvasSize()
 end
 
 local function createInfoBox(title, desc, tab, isButton, linkToCopy)
     local Container = Instance.new("Frame")
-    Container.Size = UDim2.new(0.95, 0, 0, 45)
+    Container.Size = UDim2.new(1, -20, 0, 50)
     Container.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
     Container.Visible = (tab == activeTab)
     Container.Parent = MainContent
@@ -463,12 +467,12 @@ local function createInfoBox(title, desc, tab, isButton, linkToCopy)
     end
 
     table.insert(options[tab], Container)
-    repositionElements(tab)
+    updateCanvasSize()
 end
 
 local function createSpecialButton(name, tab, callback)
     local Container = Instance.new("Frame")
-    Container.Size = UDim2.new(0.95, 0, 0, 50)
+    Container.Size = UDim2.new(1, -20, 0, 50)
     Container.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
     Container.Visible = (tab == activeTab)
     Container.Parent = MainContent
@@ -503,15 +507,15 @@ local function createSpecialButton(name, tab, callback)
     end)
 
     table.insert(options[tab], Container)
-    repositionElements(tab)
+    updateCanvasSize()
 end
 
-local function createExpandableOption(name, tab)
-    createOptionState(name .. "_expanded", false)
-    createOptionState(name .. "_selected", false)
+local function createExpandableOption(name, tab, callback)
+    createOptionState(name, false)
+    local currentActive = optionStates[name]
     
     local Container = Instance.new("Frame")
-    Container.Size = UDim2.new(0.95, 0, 0, 50)
+    Container.Size = UDim2.new(1, -20, 0, 50)
     Container.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
     Container.Visible = (tab == activeTab)
     Container.Parent = MainContent
@@ -525,7 +529,7 @@ local function createExpandableOption(name, tab)
     ContainerStroke.Parent = Container
 
     local Label = Instance.new("TextLabel")
-    Label.Size = UDim2.new(0.5, 0, 1, 0)
+    Label.Size = UDim2.new(0.55, 0, 1, 0)
     Label.Position = UDim2.new(0.05, 0, 0, 0)
     Label.Text = name
     Label.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -539,7 +543,7 @@ local function createExpandableOption(name, tab)
     local SwitchBG = Instance.new("TextButton")
     SwitchBG.Size = UDim2.new(0, 45, 0, 24)
     SwitchBG.Position = UDim2.new(1, -55, 0.5, -12)
-    SwitchBG.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    SwitchBG.BackgroundColor3 = currentActive and Color3.fromRGB(150, 150, 150) or Color3.fromRGB(40, 40, 40)
     SwitchBG.Text = ""
     SwitchBG.Parent = Container
     SwitchBG.AutoButtonColor = false
@@ -548,194 +552,218 @@ local function createExpandableOption(name, tab)
 
     local Circle = Instance.new("Frame")
     Circle.Size = UDim2.new(0, 18, 0, 18)
-    Circle.Position = UDim2.new(0, 3, 0.5, -9)
+    Circle.Position = currentActive and UDim2.new(1, -21, 0.5, -9) or UDim2.new(0, 3, 0.5, -9)
     Circle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
     Circle.Parent = SwitchBG
     Circle.ZIndex = 999
     Instance.new("UICorner", Circle).CornerRadius = UDim.new(1, 0)
 
-    local ExpandBtn = Instance.new("TextButton")
-    ExpandBtn.Size = UDim2.new(0, 30, 1, 0)
-    ExpandBtn.Position = UDim2.new(1, -40, 0, 0)
-    ExpandBtn.BackgroundTransparency = 1
-    ExpandBtn.Text = "→"
-    ExpandBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    ExpandBtn.Font = Enum.Font.SourceSansBold
-    ExpandBtn.TextSize = 16
-    ExpandBtn.Parent = Container
-    ExpandBtn.ZIndex = 999
+    local ExpandButton = Instance.new("TextButton")
+    ExpandButton.Size = UDim2.new(0, 30, 1, 0)
+    ExpandButton.Position = UDim2.new(0.6, 0, 0, 0)
+    ExpandButton.BackgroundTransparency = 1
+    ExpandButton.Text = expandedOptions[name] and "↓" or "→"
+    ExpandButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    ExpandButton.Font = Enum.Font.SourceSansBold
+    ExpandButton.TextSize = 18
+    ExpandButton.Parent = Container
+    ExpandButton.ZIndex = 999
+    ExpandButton.AutoButtonColor = false
 
-    local SubFrame = Instance.new("Frame")
-    SubFrame.Size = UDim2.new(0.95, 0, 0, 50)
-    SubFrame.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
-    SubFrame.Visible = false
-    SubFrame.Parent = MainContent
-    SubFrame.ZIndex = 999
-    Instance.new("UICorner", SubFrame).CornerRadius = UDim.new(0, 10)
+    local SubFrame = nil
+    local raritySelected = "Common"
 
-    local SubStroke = Instance.new("UIStroke")
-    SubStroke.Color = Color3.fromRGB(30, 30, 30)
-    SubStroke.Thickness = 2
-    SubStroke.Parent = SubFrame
+    local function createSubOption()
+        SubFrame = Instance.new("Frame")
+        SubFrame.Size = UDim2.new(1, -20, 0, 50)
+        SubFrame.BackgroundColor3 = Color3.fromRGB(70, 70, 85)
+        SubFrame.Visible = expandedOptions[name] or false
+        SubFrame.Parent = MainContent
+        SubFrame.ZIndex = 999
+        Instance.new("UICorner", SubFrame).CornerRadius = UDim.new(0, 10)
 
-    local SubLabel = Instance.new("TextLabel")
-    SubLabel.Size = UDim2.new(0.5, 0, 1, 0)
-    SubLabel.Position = UDim2.new(0.05, 0, 0, 0)
-    SubLabel.Text = "Common"
-    SubLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    SubLabel.BackgroundTransparency = 1
-    SubLabel.TextXAlignment = Enum.TextXAlignment.Left
-    SubLabel.Font = Enum.Font.SourceSans
-    SubLabel.TextSize = 14
-    SubLabel.Parent = SubFrame
-    SubLabel.ZIndex = 999
+        local SubStroke = Instance.new("UIStroke")
+        SubStroke.Color = Color3.fromRGB(30, 30, 30)
+        SubStroke.Thickness = 2
+        SubStroke.Parent = SubFrame
 
-    local CheckBox = Instance.new("Frame")
-    CheckBox.Size = UDim2.new(0, 24, 0, 24)
-    CheckBox.Position = UDim2.new(1, -35, 0.5, -12)
-    CheckBox.BackgroundColor3 = Color3.fromRGB(70, 70, 85)
-    CheckBox.Parent = SubFrame
-    CheckBox.ZIndex = 999
-    Instance.new("UICorner", CheckBox).CornerRadius = UDim.new(0, 6)
+        local SubLabel = Instance.new("TextLabel")
+        SubLabel.Size = UDim2.new(0.5, 0, 1, 0)
+        SubLabel.Position = UDim2.new(0.05, 0, 0, 0)
+        SubLabel.Text = "Common"
+        SubLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+        SubLabel.BackgroundTransparency = 1
+        SubLabel.TextXAlignment = Enum.TextXAlignment.Left
+        SubLabel.Font = Enum.Font.SourceSans
+        SubLabel.TextSize = 14
+        SubLabel.Parent = SubFrame
+        SubLabel.ZIndex = 999
 
-    local CheckMark = Instance.new("TextLabel")
-    CheckMark.Size = UDim2.new(1, 0, 1, 0)
-    CheckMark.BackgroundTransparency = 1
-    CheckMark.Text = "✓"
-    CheckMark.TextColor3 = Color3.fromRGB(255, 255, 255)
-    CheckMark.Font = Enum.Font.SourceSansBold
-    CheckMark.TextSize = 16
-    CheckMark.Parent = CheckBox
-    CheckMark.ZIndex = 999
-    CheckMark.Visible = false
+        local Checkbox = Instance.new("Frame")
+        Checkbox.Size = UDim2.new(0, 20, 0, 20)
+        Checkbox.Position = UDim2.new(1, -30, 0.5, -10)
+        Checkbox.BackgroundColor3 = optionStates[name .. "_CommonSelected"] and Color3.fromRGB(50, 120, 220) or Color3.fromRGB(100, 100, 120)
+        Checkbox.Parent = SubFrame
+        Checkbox.ZIndex = 999
+        Instance.new("UICorner", Checkbox).CornerRadius = UDim.new(0, 4)
+
+        Checkbox.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                optionStates[name .. "_CommonSelected"] = not optionStates[name .. "_CommonSelected"]
+                setOptionState(name .. "_CommonSelected", optionStates[name .. "_CommonSelected"])
+                Checkbox.BackgroundColor3 = optionStates[name .. "_CommonSelected"] and Color3.fromRGB(50, 120, 220) or Color3.fromRGB(100, 100, 120)
+            end
+        end)
+
+        table.insert(options[tab], SubFrame)
+    end
+
+    createSubOption()
+
+    local function toggleSwitch()
+        if createDebounce(name, 0.05) then
+            optionStates[name] = not optionStates[name]
+            setOptionState(name, optionStates[name])
+
+            Circle:TweenPosition(optionStates[name] and UDim2.new(1, -21, 0.5, -9) or UDim2.new(0, 3, 0.5, -9), "Out", "Quad", 0.2, true)
+            SwitchBG.BackgroundColor3 = optionStates[name] and Color3.fromRGB(150, 150, 150) or Color3.fromRGB(40, 40, 40)
+
+            if callback then 
+                task.wait(0.05)
+                task.spawn(function() callback(optionStates[name], optionStates[name .. "_CommonSelected"]) end)
+            end
+
+            updateCanvasSize()
+        end
+    end
 
     local function toggleExpand()
-        local isExpanded = optionStates[name .. "_expanded"]
-        optionStates[name .. "_expanded"] = not isExpanded
-        setOptionState(name .. "_expanded", not isExpanded)
-        
-        SubFrame.Visible = not isExpanded
-        ExpandBtn.Text = isExpanded and "→" or "↓"
-        
-        repositionElements(activeTab)
-    end
-
-    local function updateCheckBox()
-        local isSelected = optionStates[name .. "_selected"]
-        CheckBox.BackgroundColor3 = isSelected and Color3.fromRGB(50, 120, 220) or Color3.fromRGB(70, 70, 85)
-        CheckMark.Visible = isSelected
-    end
-
-    ExpandBtn.MouseButton1Click:Connect(toggleExpand)
-    ExpandBtn.TouchTap:Connect(toggleExpand)
-
-    CheckBox.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            if createDebounce(name .. "_checkbox", 0.1) then
-                optionStates[name .. "_selected"] = not optionStates[name .. "_selected"]
-                setOptionState(name .. "_selected", optionStates[name .. "_selected"])
-                updateCheckBox()
-            end
+        if createDebounce(name .. "_expand", 0.1) then
+            expandedOptions[name] = not expandedOptions[name]
+            ExpandButton.Text = expandedOptions[name] and "↓" or "→"
+            SubFrame.Visible = expandedOptions[name]
+            updateCanvasSize()
         end
-    end)
+    end
 
-    updateCheckBox()
-    table.insert(options[tab], Container)
-    table.insert(allSubFrames, {frame = SubFrame, tab = tab, name = name})
+    if not connectionStorage[name] then
+        connectionStorage[name] = {}
+    end
     
-    return SubFrame
+    if connectionStorage[name].activated then
+        pcall(function() connectionStorage[name].activated:Disconnect() end)
+    end
+    
+    connectionStorage[name].activated = SwitchBG.Activated:Connect(toggleSwitch)
+    ExpandButton.MouseButton1Click:Connect(toggleExpand)
+
+    table.insert(options[tab], Container)
+    updateCanvasSize()
 end
 
-local LP = game:GetService("Players").LocalPlayer
-local RS = game:GetService("ReplicatedStorage")
+-- ============ FUNÇÕES DE FUNCIONALIDADES ============
 
 local function GetMyPlot()
     local Plots = workspace:FindFirstChild("Plots")
     if not Plots then return nil end
     for _, p in pairs(Plots:GetChildren()) do
-        if p:GetAttribute("OwnerUserID") == LP.UserId or p:GetAttribute("Owner") == LP.UserId then return p end
+        if p:GetAttribute("OwnerUserID") == Player.UserId or p:GetAttribute("Owner") == Player.UserId then return p end
     end
     return nil
 end
 
-local isFlyActive = false
-local bg, bv
+local function getMyPlotFromFirstScript()
+    local plots = workspace:FindFirstChild("Plots")
+    if not plots then return nil end
 
+    for _, plot in ipairs(plots:GetChildren()) do
+        local ok, result = pcall(function()
+            local playerName = plot
+                :WaitForChild("MainSign")
+                :WaitForChild("ScreenFrame")
+                :WaitForChild("SurfaceGui")
+                :WaitForChild("Frame")
+                :WaitForChild("Owner")
+                :WaitForChild("PlayerName")
+
+            if string.upper(playerName.Text) == string.upper(Player.Name) then
+                return plot
+            end
+        end)
+
+        if ok and result then
+            return result
+        end
+    end
+
+    return nil
+end
+
+local function getOrderedSlots(plot)
+    local result = {}
+    local pods = plot:FindFirstChild("Pods")
+    if not pods then return result end
+
+    for _, slot in ipairs(pods:GetChildren()) do
+        if slot:IsA("Model")
+        and slot:FindFirstChild("BrainrotModel")
+        and #slot.BrainrotModel:GetChildren() > 0
+        and slot:FindFirstChild("TouchPart") then
+            table.insert(result, slot)
+        end
+    end
+
+    table.sort(result, function(a, b)
+        return tonumber(a.Name) < tonumber(b.Name)
+    end)
+
+    return result
+end
+
+local function getOrderedUpgradeSlots(plot)
+    local result = {}
+    local pods = plot:FindFirstChild("Pods")
+    if not pods then return result end
+
+    for _, slot in ipairs(pods:GetChildren()) do
+        if slot:IsA("Model")
+        and slot:FindFirstChild("BrainrotModel")
+        and #slot.BrainrotModel:GetChildren() > 0
+        and slot:FindFirstChild("BasePart")
+        and slot.BasePart:FindFirstChild("Console")
+        and slot.BasePart.Console:FindFirstChild("Upgrade") then
+            table.insert(result, slot)
+        end
+    end
+
+    table.sort(result, function(a, b)
+        return tonumber(a.Name) < tonumber(b.Name)
+    end)
+
+    return result
+end
+
+-- ============ CRIAÇÃO DAS OPÇÕES ============
+
+-- ABA MAIN
 createOption("Auto Money", false, "Main", function(state)
     getgenv().AutoCollect = state
 
     if state then
         task.spawn(function()
-            local Players = game:GetService("Players")
-            local player = Players.LocalPlayer
-            local cachedPlot = nil
-
-            local function getMyPlot()
-                if cachedPlot and cachedPlot.Parent then
-                    return cachedPlot
-                end
-
-                local plots = workspace:FindFirstChild("Plots")
-                if not plots then return nil end
-
-                for _, plot in ipairs(plots:GetChildren()) do
-                    local ok, result = pcall(function()
-                        local playerName = plot
-                            :WaitForChild("MainSign")
-                            :WaitForChild("ScreenFrame")
-                            :WaitForChild("SurfaceGui")
-                            :WaitForChild("Frame")
-                            :WaitForChild("Owner")
-                            :WaitForChild("PlayerName")
-
-                        if string.upper(playerName.Text) == string.upper(player.Name) then
-                            cachedPlot = plot
-                            return plot
-                        end
-                    end)
-
-                    if ok and result then
-                        return result
-                    end
-                end
-
-                return nil
-            end
-
-            local function getOrderedSlots(plot)
-                local result = {}
-                local pods = plot:FindFirstChild("Pods")
-                if not pods then return result end
-
-                for _, slot in ipairs(pods:GetChildren()) do
-                    if slot:IsA("Model")
-                    and slot:FindFirstChild("BrainrotModel")
-                    and #slot.BrainrotModel:GetChildren() > 0
-                    and slot:FindFirstChild("TouchPart") then
-                        table.insert(result, slot)
-                    end
-                end
-
-                table.sort(result, function(a, b)
-                    return tonumber(a.Name) < tonumber(b.Name)
-                end)
-
-                return result
-            end
-
             while getgenv().AutoCollect do
                 task.wait(0.2)
 
-                local plot = getMyPlot()
+                local plot = getMyPlotFromFirstScript()
 
-                if plot and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                if plot and Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then
                     local slots = getOrderedSlots(plot)
 
                     for _, slot in ipairs(slots) do
                         local touch = slot:FindFirstChild("TouchPart")
                         if touch then
-                            firetouchinterest(player.Character.HumanoidRootPart, touch, 0)
-                            firetouchinterest(player.Character.HumanoidRootPart, touch, 1)
+                            firetouchinterest(Player.Character.HumanoidRootPart, touch, 0)
+                            firetouchinterest(Player.Character.HumanoidRootPart, touch, 1)
                         end
                     end
                 end
@@ -746,26 +774,22 @@ end)
 
 createOption("Auto Rebirth", false, "Main", function(state)
     getgenv().AutoRebirth = state
-    
+
     if state then
         task.spawn(function()
             while getgenv().AutoRebirth do
                 task.wait(0.1)
-                
-                local CashValue = LP:WaitForChild("leaderstats"):WaitForChild("Cash")
-                local StatsFolder = LP:WaitForChild("updateStatsFolder")
-                local Knit = require(RS:WaitForChild("Packages"):WaitForChild("Knit"))
-                local StatService = pcall(function() return Knit.GetService("StatUpgradeService") end)
-                
+
                 pcall(function()
+                    local StatsFolder = Player:WaitForChild("updateStatsFolder")
                     local currentRebirths = StatsFolder:WaitForChild("Rebirths").Value
                     local currentReach = StatsFolder:WaitForChild("Reach_Distance").Value
                     local reachNeeded = currentRebirths * 30 + 80
                     
                     if currentReach >= reachNeeded and currentRebirths < 50 then
-                        if StatService then
-                            StatService:Rebirth()
-                        end
+                        local Knit = require(ReplicatedStorage:WaitForChild("Packages"):WaitForChild("Knit"))
+                        local StatService = Knit.GetService("StatUpgradeService")
+                        StatService:Rebirth()
                     end
                 end)
             end
@@ -773,80 +797,19 @@ createOption("Auto Rebirth", false, "Main", function(state)
     end
 end)
 
-createExpandableOption("Sell Brainrots", "Main")
-
 createOption("Auto Upgrade", false, "Main", function(state)
     getgenv().AutoUpgrade = state
 
     if state then
         task.spawn(function()
-            local Players = game:GetService("Players")
-            local player = Players.LocalPlayer
-            local cachedPlot = nil
-
-            local function getMyPlot()
-                if cachedPlot and cachedPlot.Parent then
-                    return cachedPlot
-                end
-
-                local plots = workspace:FindFirstChild("Plots")
-                if not plots then return nil end
-
-                for _, plot in ipairs(plots:GetChildren()) do
-                    local ok, result = pcall(function()
-                        local playerName = plot
-                            :WaitForChild("MainSign")
-                            :WaitForChild("ScreenFrame")
-                            :WaitForChild("SurfaceGui")
-                            :WaitForChild("Frame")
-                            :WaitForChild("Owner")
-                            :WaitForChild("PlayerName")
-
-                        if string.upper(playerName.Text) == string.upper(player.Name) then
-                            cachedPlot = plot
-                            return plot
-                        end
-                    end)
-
-                    if ok and result then
-                        return result
-                    end
-                end
-
-                return nil
-            end
-
-            local function getOrderedSlots(plot)
-                local result = {}
-                local pods = plot:FindFirstChild("Pods")
-                if not pods then return result end
-
-                for _, slot in ipairs(pods:GetChildren()) do
-                    if slot:IsA("Model")
-                    and slot:FindFirstChild("BrainrotModel")
-                    and #slot.BrainrotModel:GetChildren() > 0
-                    and slot:FindFirstChild("BasePart")
-                    and slot.BasePart:FindFirstChild("Console")
-                    and slot.BasePart.Console:FindFirstChild("Upgrade") then
-                        table.insert(result, slot)
-                    end
-                end
-
-                table.sort(result, function(a, b)
-                    return tonumber(a.Name) < tonumber(b.Name)
-                end)
-
-                return result
-            end
-
             while getgenv().AutoUpgrade do
                 task.wait(0.07)
 
-                local plot = getMyPlot()
-                if not plot then continue end
+                local plot = getMyPlotFromFirstScript()
+                if not plot then task.wait(0.5) continue end
 
-                local slots = getOrderedSlots(plot)
-                if #slots == 0 then continue end
+                local slots = getOrderedUpgradeSlots(plot)
+                if #slots == 0 then task.wait(0.5) continue end
 
                 for _, slot in ipairs(slots) do
                     local prompt = slot.BasePart.Console:FindFirstChild("Upgrade")
@@ -867,46 +830,92 @@ createOption("Auto Upgrade", false, "Main", function(state)
     end
 end)
 
-createSpecialButton("Sell ALL Brainrots", "Main", function()
-    pcall(function()
-        RS:WaitForChild("Shared"):WaitForChild("Packages"):WaitForChild("Network"):WaitForChild("ref_B_SellAll"):InvokeServer()
-    end)
-end)
+createExpandableOption("Sell Brainrots", "Main", function(state, isCommonSelected)
+    getgenv().SellBrainrots = state
 
-createOption("Auto Speed", false, "Buy ALL", function(state)
     if state then
         task.spawn(function()
-            while optionStates["Auto Speed"] do
-                task.wait(2)
-                pcall(function()
-                    RS:WaitForChild("Shared"):WaitForChild("Packages"):WaitForChild("Network"):WaitForChild("rev_SPEED_UPGRADE"):FireServer(1)
-                end)
+            while getgenv().SellBrainrots do
+                if isCommonSelected or optionStates["Sell Brainrots_CommonSelected"] then
+                    local mochila = Player:WaitForChild("Backpack", 2)
+                    if mochila then
+                        for _, ferramenta in pairs(mochila:GetChildren()) do
+                            if ferramenta:IsA("Tool") then
+                                local modelo = ferramenta:FindFirstChildOfClass("Model")
+                                if modelo then
+                                    local raridadeObj = modelo:FindFirstChild("Root")
+                                        and modelo.Root:FindFirstChild("EntityGUI")
+                                        and modelo.Root.EntityGUI:FindFirstChild("Frame")
+                                        and modelo.Root.EntityGUI.Frame:FindFirstChild("RarityLabel")
+                                    if raridadeObj and raridadeObj.Text == "Common" then
+                                        Player.Character.Humanoid:EquipTool(ferramenta)
+                                        task.wait(0.1)
+                                        pcall(function()
+                                            ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Packages"):WaitForChild("Network"):WaitForChild("ref_B_Sell"):InvokeServer()
+                                        end)
+                                        task.wait(0.2)
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+                task.wait(0.5)
             end
         end)
     end
 end)
 
-local Destino = Vector3.new(699.768311, 8.75000668, 231.199585)
+createSpecialButton("Sell ALL Brainrots", "Main", function()
+    pcall(function()
+        ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Packages"):WaitForChild("Network"):WaitForChild("ref_B_SellAll"):InvokeServer()
+    end)
+end)
 
-createOption("Auto Kick Brainrots", false, "Farm", function(state)
+-- ABA BUY
+createOption("Auto Speed", false, "Buy", function(state)
+    getgenv().AutoSpeed = state
+
     if state then
         task.spawn(function()
-            while optionStates["Auto Kick Brainrots"] do
-                local char = LP.Character
-                if char and char:FindFirstChild("HumanoidRootPart") then
-                    local root = char.HumanoidRootPart
-                    root.CFrame = CFrame.new(Destino)
-                    task.wait(0.05)
+            while getgenv().AutoSpeed do
+                local args = {[1] = 1}
+                pcall(function()
+                    ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Packages"):WaitForChild("Network"):WaitForChild("rev_SPEED_UPGRADE"):FireServer(unpack(args))
+                end)
+                task.wait(2)
+            end
+        end)
+    end
+end)
+
+-- ABA FARM
+createOption("Auto Kick Brainrots", false, "Farm", function(state)
+    getgenv().AutoKick = state
+
+    if state then
+        task.spawn(function()
+            local destino = Vector3.new(699.768311, 8.75000668, 231.199585)
+            
+            while getgenv().AutoKick do
+                local Root = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
+                if Root then
+                    Root.CFrame = CFrame.new(destino)
+                    task.wait(0.03)
                     
                     pcall(function()
-                        RS:WaitForChild("Shared"):WaitForChild("Packages"):WaitForChild("Network"):WaitForChild("rev_KickEvent"):FireServer(0.9938004650175571)
+                        local evento = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Packages"):WaitForChild("Network"):FindFirstChild("rev_KickEvent")
+                        if evento then
+                            evento:FireServer(0.9938004650175571)
+                        end
                     end)
+                    
                     task.wait(1)
                     
-                    local distancia = (root.Position - Destino).Magnitude
+                    local distancia = (Root.Position - destino).Magnitude
                     local tempo = distancia / 50
                     local info = TweenInfo.new(tempo, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
-                    local tween = TweenService:Create(root, info, {CFrame = CFrame.new(Destino)})
+                    local tween = TweenService:Create(Root, info, {CFrame = CFrame.new(destino)})
                     tween:Play()
                     tween.Completed:Wait()
                 end
@@ -923,42 +932,46 @@ local ListaArmasTreino = {
 }
 
 createOption("Auto Train", false, "Farm", function(state)
+    getgenv().AutoTrain = state
+
     if state then
         task.spawn(function()
-            while optionStates["Auto Train"] do
-                task.wait(0.3)
-                
-                local mochila = LP:WaitForChild("Backpack", 2)
+            while getgenv().AutoTrain do
+                local mochila = Player:WaitForChild("Backpack", 2)
                 if mochila then
                     for _, nome in pairs(ListaArmasTreino) do
                         local ferramenta = mochila:FindFirstChild(nome)
                         if ferramenta and ferramenta:IsA("Tool") then
-                            if not LP.Character:FindFirstChildOfClass("Humanoid"):FindFirstChildOfClass("Tool") then
-                                LP.Character:FindFirstChildOfClass("Humanoid"):EquipTool(ferramenta)
+                            if not Player.Character.Humanoid:FindFirstChildOfClass("Tool") then
+                                Player.Character.Humanoid:EquipTool(ferramenta)
                                 task.wait(0.15)
-                                
                                 pcall(function()
-                                    RS:WaitForChild("Shared"):WaitForChild("Packages"):WaitForChild("Network"):WaitForChild("rev_EquippedWeight"):FireServer()
-                                    RS:WaitForChild("Shared"):WaitForChild("Packages"):WaitForChild("Network"):WaitForChild("rev_WeightEquip"):FireServer()
+                                    local net = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Packages"):WaitForChild("Network")
+                                    net:FindFirstChild("rev_EquippedWeight"):FireServer()
+                                    net:FindFirstChild("rev_WeightEquip"):FireServer()
                                 end)
                             end
                             break
                         end
                     end
                 end
+                task.wait(0.3)
             end
         end)
     end
 end)
 
+-- ABA CONFIG
 createSpecialButton("Auto Rejoin", "Config", function()
     TeleportService:Teleport(game.PlaceId)
 end)
 
 createOption("Anti AFK", false, "Config", function(state)
+    getgenv().AntiAFK = state
+
     if state then
         task.spawn(function()
-            while optionStates["Anti AFK"] do
+            while getgenv().AntiAFK do
                 task.wait(0.1)
                 pcall(function()
                     VirtualUser:CaptureController()
@@ -969,151 +982,68 @@ createOption("Anti AFK", false, "Config", function(state)
     end
 end)
 
-createOption("Anti Cheat", false, "Config")
+local oldNamecall
+createOption("Anti Cheat", false, "Config", function(state)
+    if state then
+        oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+            local method = getnamecallmethod()
+            if method == "FireServer" and tostring(self) == "Cheat" then
+                return nil
+            end
+            return oldNamecall(self, ...)
+        end)
+    else
+        if oldNamecall then
+            pcall(function() oldNamecall:Disconnect() end)
+        end
+    end
+end)
 
-createOption("Infinite Jump", false, "Config")
+createOption("Infinite Jump", false, "Config", function(state)
+    getgenv().InfiniteJump = state
+end)
+
+UserInputService.JumpRequest:Connect(function()
+    if getgenv().InfiniteJump then
+        local char = Player.Character
+        if char then
+            local humanoid = char:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+            end
+        end
+    end
+end)
 
 createOption("Enable Speed", false, "Config", function(state)
-    if state then
-        speedValue = optionStates["Speed"]
-    end
+    getgenv().SpeedEnabled = state
 end)
 
 createSlider("Speed", 1, 500, 32, "Config", function(value)
     speedValue = value
 end)
 
-createOption("Fly", false, "Config")
+createOption("Fly", false, "Config", function(state)
+    getgenv().FlyEnabled = state
+end)
 
 createSlider("Fly Speed", 1, 500, 32, "Config", function(value)
     flySpeed = value
 end)
 
-createOption("Noclip", false, "Config")
-
-local shiftLockSystemEnabled = false
-local shiftLockActive = false
-local shiftLockGui = nil
-local shiftLockBtn = nil
-local shiftLockConnection = nil
-
-local function getCharacterForShiftLock()
-    local character = Player.Character or Player.CharacterAdded:Wait()
-    local humanoid = character:WaitForChild("Humanoid")
-    local root = character:WaitForChild("HumanoidRootPart")
-    return character, humanoid, root
-end
-
-local function enableShiftLockSystem()
-    local character, humanoid, root = getCharacterForShiftLock()
-    
-    shiftLockActive = true
-    if shiftLockBtn then
-        shiftLockBtn.Image = "rbxassetid://139211296111194"
-    end
-    
-    workspace.CurrentCamera.CameraType = Enum.CameraType.Custom
-    UserInputService.MouseBehavior = Enum.MouseBehavior.Default
-    
-    humanoid.AutoRotate = false
-    
-    if shiftLockConnection then shiftLockConnection:Disconnect() end
-    
-    shiftLockConnection = RunService.RenderStepped:Connect(function()
-        if shiftLockActive and shiftLockSystemEnabled then
-            local camera = workspace.CurrentCamera
-            local lookVector = camera.CFrame.LookVector
-            local flatLook = Vector3.new(lookVector.X, 0, lookVector.Z)
-            
-            if flatLook.Magnitude > 0.001 then
-                flatLook = flatLook.Unit
-                root.CFrame = CFrame.lookAt(root.Position, root.Position + flatLook)
-            end
-        end
-    end)
-end
-
-local function disableShiftLockSystem()
-    local character, humanoid, root = getCharacterForShiftLock()
-    
-    shiftLockActive = false
-    if shiftLockBtn then
-        shiftLockBtn.Image = "rbxassetid://105987953182009"
-    end
-    
-    workspace.CurrentCamera.CameraType = Enum.CameraType.Custom
-    UserInputService.MouseBehavior = Enum.MouseBehavior.Default
-    
-    humanoid.AutoRotate = true
-    
-    if shiftLockConnection then
-        shiftLockConnection:Disconnect()
-        shiftLockConnection = nil
-    end
-end
-
-createOption("Enable Shift Lock", false, "Config", function(active)
-    if active then
-        shiftLockSystemEnabled = true
-        
-        if not shiftLockGui then
-            shiftLockGui = Instance.new("ScreenGui")
-            shiftLockGui.Name = "ShiftLockGUI"
-            shiftLockGui.ResetOnSpawn = false
-            shiftLockGui.Parent = PlayerGui
-            
-            shiftLockBtn = Instance.new("ImageButton")
-            shiftLockBtn.Size = UDim2.new(0, 50, 0, 50)
-            shiftLockBtn.Position = UDim2.new(0.5, -25, 0.76, 0)
-            shiftLockBtn.BackgroundTransparency = 1
-            shiftLockBtn.Image = "rbxassetid://139211296111194"
-            shiftLockBtn.Parent = shiftLockGui
-            
-            shiftLockBtn.Activated:Connect(function()
-                if shiftLockActive then
-                    disableShiftLockSystem()
-                else
-                    enableShiftLockSystem()
-                end
-            end)
-        end
-        
-        enableShiftLockSystem()
-    else
-        shiftLockSystemEnabled = false
-        
-        if shiftLockConnection then
-            shiftLockConnection:Disconnect()
-            shiftLockConnection = nil
-        end
-        
-        if shiftLockGui then
-            shiftLockGui:Destroy()
-            shiftLockGui = nil
-            shiftLockBtn = nil
-        end
-        
-        local character = Player.Character
-        if character then
-            local humanoid = character:FindFirstChildOfClass("Humanoid")
-            if humanoid then
-                humanoid.AutoRotate = true
-            end
-        end
-        
-        UserInputService.MouseBehavior = Enum.MouseBehavior.Default
-        shiftLockActive = false
-    end
+createOption("Noclip", false, "Config", function(state)
+    getgenv().NoclipEnabled = state
 end)
 
-createInfoBox("By: Cleiton10HDx", "Script created by this user.", "Credits", false)
-createInfoBox("Discord", "My Discord Server", "Credits", true, "https://discord.gg/72P6NhC5Pf")
+createOption("Enable Shift Lock", false, "Config", function(state)
+    getgenv().ShiftLockEnabled = state
+end)
 
-repositionElements("Main")
-repositionElements("Buy ALL")
-repositionElements("Farm")
-repositionElements("Config")
-repositionElements("Credits")
+-- ABA CREDITS
+createInfoBox("By: erimiltonlopes7993", "Script criado por este usuário.", "Credits", false)
+createInfoBox("Discord", "Meu Servidor Discord", "Credits", true, "https://discord.gg/72P6NhC5Pf")
+
+-- ============ LÓGICA DE ABAS ============
 
 local function showTab(tabName)
     activeTab = tabName
@@ -1122,23 +1052,30 @@ local function showTab(tabName)
             v.Visible = (tab == tabName)
         end
     end
-    
-    for _, subframeData in ipairs(allSubFrames) do
-        if subframeData.tab == tabName then
-            subframeData.frame.Visible = optionStates[subframeData.name .. "_expanded"]
-        else
-            subframeData.frame.Visible = false
-        end
-    end
-    
-    repositionElements(tabName)
+    updateCanvasSize()
 end
 
-TabMain.MouseButton1Click:Connect(function() showTab("Main") end)
-TabBuy.MouseButton1Click:Connect(function() showTab("Buy ALL") end)
-TabFarm.MouseButton1Click:Connect(function() showTab("Farm") end)
-TabConfig.MouseButton1Click:Connect(function() showTab("Config") end)
-TabCredits.MouseButton1Click:Connect(function() showTab("Credits") end)
+TabMain.MouseButton1Click:Connect(function()
+    showTab("Main")
+end)
+
+TabBuy.MouseButton1Click:Connect(function()
+    showTab("Buy")
+end)
+
+TabFarm.MouseButton1Click:Connect(function()
+    showTab("Farm")
+end)
+
+TabConfig.MouseButton1Click:Connect(function()
+    showTab("Config")
+end)
+
+TabCredits.MouseButton1Click:Connect(function()
+    showTab("Credits")
+end)
+
+-- ============ CONTROLES DO BOTÃO FLUTUANTE ============
 
 local draggingBtn, dragStartBtn, startPosBtn
 FloatingButton.InputBegan:Connect(function(input)
@@ -1172,44 +1109,65 @@ CloseBtn.Activated:Connect(function()
     MainFrame.Visible = false
 end)
 
-UserInputService.JumpRequest:Connect(function()
-    if optionStates["Infinite Jump"] then
-        local value = optionStates["Infinite Jump"]
-        if type(value) == "function" then value = value() end
-        if value then
-            local char = LP.Character
-            if char then
-                local humanoid = char:FindFirstChildOfClass("Humanoid")
-                if humanoid then
-                    humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-                end
-            end
-        end
-    end
-end)
+-- ============ LOOP DE FUNCIONALIDADES ATIVAS ============
 
+local isFlyActive = false
+local bg, bv
 local noclipEnabled = false
 local noclipParts = {}
 
 task.spawn(function()
     while task.wait(0.1) do
-        local speedEnabled = optionStates["Enable Speed"]
-        if type(speedEnabled) == "function" then speedEnabled = speedEnabled() end
+        local speedEnabled = getgenv().SpeedEnabled
         if speedEnabled then
-            local char = LP.Character
+            local char = Player.Character
             if char and char:FindFirstChild("Humanoid") then
                 char.Humanoid.WalkSpeed = speedValue
             end
         else
-            local char = LP.Character
+            local char = Player.Character
             if char and char:FindFirstChild("Humanoid") then
                 char.Humanoid.WalkSpeed = 28
             end
         end
 
+        if getgenv().FlyEnabled then
+            isFlyActive = true
+            local char = Player.Character
+            if char and char:FindFirstChild("HumanoidRootPart") then
+                local root = char.HumanoidRootPart
+                if not root:FindFirstChild("FlyVel") then
+                    bv = Instance.new("BodyVelocity")
+                    bv.Name = "FlyVel"
+                    bv.Velocity = Vector3.new(0, 0, 0)
+                    bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+                    bv.Parent = root
+                end
+                if not root:FindFirstChild("FlyGyro") then
+                    bg = Instance.new("BodyGyro")
+                    bg.Name = "FlyGyro"
+                    bg.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
+                    bg.CFrame = root.CFrame
+                    bg.Parent = root
+                end
+            end
+        else
+            isFlyActive = false
+            local char = Player.Character
+            if char and char:FindFirstChild("HumanoidRootPart") then
+                local root = char.HumanoidRootPart
+                local vel = root:FindFirstChild("FlyVel")
+                local gyro = root:FindFirstChild("FlyGyro")
+                if vel then vel:Destroy() end
+                if gyro then gyro:Destroy() end
+                bv = nil
+                bg = nil
+            end
+        end
+
         if isFlyActive and bg and bv then
             local cam = workspace.CurrentCamera
-            local char = LP.Character
+            local char = Player.Character
             if char and char:FindFirstChild("HumanoidRootPart") then
                 local hum = char:FindFirstChildOfClass("Humanoid")
                 if hum then
@@ -1244,8 +1202,8 @@ task.spawn(function()
             end
         end
 
-        if noclipEnabled then
-            local char = LP.Character
+        if getgenv().NoclipEnabled then
+            local char = Player.Character
             if char then
                 for _, part in pairs(char:GetDescendants()) do
                     if part:IsA("BasePart") then
@@ -1257,101 +1215,125 @@ task.spawn(function()
     end
 end)
 
-task.spawn(function()
-    while task.wait(0.1) do
-        local flyEnabled = optionStates["Fly"]
-        if type(flyEnabled) == "function" then flyEnabled = flyEnabled() end
-        if flyEnabled then
-            isFlyActive = true
-            local char = LP.Character
-            if char and char:FindFirstChild("HumanoidRootPart") then
-                local root = char.HumanoidRootPart
-                if not root:FindFirstChild("FlyVel") then
-                    bv = Instance.new("BodyVelocity")
-                    bv.Name = "FlyVel"
-                    bv.Velocity = Vector3.new(0, 0, 0)
-                    bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
-                    bv.Parent = root
-                end
-                if not root:FindFirstChild("FlyGyro") then
-                    bg = Instance.new("BodyGyro")
-                    bg.Name = "FlyGyro"
-                    bg.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
-                    bg.CFrame = root.CFrame
-                    bg.Parent = root
-                end
-            end
-        else
-            isFlyActive = false
-            local char = LP.Character
-            if char and char:FindFirstChild("HumanoidRootPart") then
-                local root = char.HumanoidRootPart
-                local vel = root:FindFirstChild("FlyVel")
-                local gyro = root:FindFirstChild("FlyGyro")
-                if vel then vel:Destroy() end
-                if gyro then gyro:Destroy() end
-                bv = nil
-                bg = nil
-            end
-        end
+-- Shift Lock System
+local shiftLockSystemEnabled = false
+local shiftLockActive = false
+local shiftLockGui = nil
+local shiftLockBtn = nil
+local shiftLockConnection = nil
 
-        local noclipVal = optionStates["Noclip"]
-        if type(noclipVal) == "function" then noclipVal = noclipVal() end
-        if noclipVal then
-            noclipEnabled = true
-        else
-            noclipEnabled = false
-            for part, canCollide in pairs(noclipParts) do
-                if part and part.Parent then
-                    part.CanCollide = canCollide
-                end
-            end
-            noclipParts = {}
-        end
+local function getCharacterForShiftLock()
+    local character = Player.Character or Player.CharacterAdded:Wait()
+    local humanoid = character:WaitForChild("Humanoid")
+    local root = character:WaitForChild("HumanoidRootPart")
+    return character, humanoid, root
+end
+
+local function enableShiftLockSystem()
+    local character, humanoid, root = getCharacterForShiftLock()
+    
+    shiftLockActive = true
+    if shiftLockBtn then
+        shiftLockBtn.Image = "rbxassetid://139211296111194"
     end
-end)
-
-local oldNamecall
-oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
-    local antiCheat = optionStates["Anti Cheat"]
-    if type(antiCheat) == "function" then antiCheat = antiCheat() end
-    if antiCheat then
-        local method = getnamecallmethod()
-        if method == "FireServer" and tostring(self) == "Cheat" then
-            return nil
+    
+    workspace.CurrentCamera.CameraType = Enum.CameraType.Custom
+    UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+    
+    humanoid.AutoRotate = false
+    
+    if shiftLockConnection then shiftLockConnection:Disconnect() end
+    
+    shiftLockConnection = RunService.RenderStepped:Connect(function()
+        if shiftLockActive and getgenv().ShiftLockEnabled then
+            local camera = workspace.CurrentCamera
+            local lookVector = camera.CFrame.LookVector
+            local flatLook = Vector3.new(lookVector.X, 0, lookVector.Z)
+            
+            if flatLook.Magnitude > 0.001 then
+                flatLook = flatLook.Unit
+                root.CFrame = CFrame.lookAt(root.Position, root.Position + flatLook)
+            end
         end
-    end
-    return oldNamecall(self, ...)
-end)
+    end)
+end
 
-task.spawn(function()
-    while task.wait(0.5) do
-        local sellBrainrotsEnabled = optionStates["Sell Brainrots"]
-        local isCommonSelected = optionStates["Sell Brainrots_selected"]
-        
-        if sellBrainrotsEnabled and isCommonSelected then
-            local mochila = LP:WaitForChild("Backpack", 2)
-            if mochila then
-                for _, ferramenta in pairs(mochila:GetChildren()) do
-                    if ferramenta:IsA("Tool") then
-                        local modelo = ferramenta:FindFirstChildOfClass("Model")
-                        if modelo then
-                            local raridadeObj = modelo:FindFirstChild("Root")
-                                and modelo.Root:FindFirstChild("EntityGUI")
-                                and modelo.Root.EntityGUI:FindFirstChild("Frame")
-                                and modelo.Root.EntityGUI.Frame:FindFirstChild("RarityLabel")
-                            if raridadeObj and raridadeObj.Text == "Common" then
-                                LP.Character:FindFirstChildOfClass("Humanoid"):EquipTool(ferramenta)
-                                task.wait(0.1)
-                                pcall(function()
-                                    RS:WaitForChild("Shared"):WaitForChild("Packages"):WaitForChild("Network"):WaitForChild("ref_B_Sell"):InvokeServer()
-                                end)
-                                task.wait(0.2)
-                            end
-                        end
+local function disableShiftLockSystem()
+    local character, humanoid, root = getCharacterForShiftLock()
+    
+    shiftLockActive = false
+    if shiftLockBtn then
+        shiftLockBtn.Image = "rbxassetid://105987953182009"
+    end
+    
+    workspace.CurrentCamera.CameraType = Enum.CameraType.Custom
+    UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+    
+    humanoid.AutoRotate = true
+    
+    if shiftLockConnection then
+        shiftLockConnection:Disconnect()
+        shiftLockConnection = nil
+    end
+end
+
+-- Integração do Shift Lock com a opção
+local originalShiftLockOption = createOptionState("Enable Shift Lock", false)
+
+game:GetService("RunService").RenderStepped:Connect(function()
+    if getgenv().ShiftLockEnabled then
+        if not shiftLockSystemEnabled then
+            shiftLockSystemEnabled = true
+            
+            if not shiftLockGui then
+                shiftLockGui = Instance.new("ScreenGui")
+                shiftLockGui.Name = "ShiftLockGUI"
+                shiftLockGui.ResetOnSpawn = false
+                shiftLockGui.Parent = PlayerGui
+                
+                shiftLockBtn = Instance.new("ImageButton")
+                shiftLockBtn.Size = UDim2.new(0, 50, 0, 50)
+                shiftLockBtn.Position = UDim2.new(0.5, -25, 0.76, 0)
+                shiftLockBtn.BackgroundTransparency = 1
+                shiftLockBtn.Image = "rbxassetid://139211296111194"
+                shiftLockBtn.Parent = shiftLockGui
+                
+                shiftLockBtn.Activated:Connect(function()
+                    if shiftLockActive then
+                        disableShiftLockSystem()
+                    else
+                        enableShiftLockSystem()
                     end
+                end)
+            end
+            
+            enableShiftLockSystem()
+        end
+    else
+        if shiftLockSystemEnabled then
+            shiftLockSystemEnabled = false
+            
+            if shiftLockConnection then
+                shiftLockConnection:Disconnect()
+                shiftLockConnection = nil
+            end
+            
+            if shiftLockGui then
+                shiftLockGui:Destroy()
+                shiftLockGui = nil
+                shiftLockBtn = nil
+            end
+            
+            local character = Player.Character
+            if character then
+                local humanoid = character:FindFirstChildOfClass("Humanoid")
+                if humanoid then
+                    humanoid.AutoRotate = true
                 end
             end
+            
+            UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+            shiftLockActive = false
         end
     end
 end)
@@ -1362,3 +1344,7 @@ Player.CharacterAdded:Connect(function()
         enableShiftLockSystem()
     end
 end)
+
+-- Inicializar
+showTab("Main")
+updateCanvasSize()
